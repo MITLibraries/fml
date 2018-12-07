@@ -99,6 +99,57 @@ func (d DataField) SubField(subfield ...string) []SubField {
 	return fields
 }
 
+func (d DataField) matches(tag string, ind1 string, ind2 string) bool {
+	t := d.Tag == tag
+	i1 := ind1 == "*" || d.Indicator1 == ind1
+	i2 := ind2 == "*" || d.Indicator2 == ind2
+	return t && i1 && i2
+}
+
+// Filter takes one or more tag queries and returns a slice of strings
+// matching the selected subfield values. A tag query consists of the
+// three digit MARC tag optionally followed by one or more subfield codes,
+// for example: "245ac", "650x" or "100". Filtering for indicators can be
+// done by including the two desired indicators between pipes after the tag.
+// An * character can be used for any inidicator, for example: "245|*1|ac"
+// or 650|01|x.
+func (r Record) Filter(query ...string) []string {
+	var res []string
+	for _, q := range query {
+		tag := q[:3]
+		for _, field := range r.Fields {
+			switch f := field.(type) {
+			case ControlField:
+				if f.Tag == tag {
+					res = append(res, f.Value)
+				}
+			case DataField:
+				parts := strings.Split(q, "|")
+				var subs string
+				ind1, ind2 := "*", "*"
+				if len(parts) == 3 {
+					ind1, ind2 = string(parts[1][0]), string(parts[1][1])
+					subs = parts[2]
+				} else {
+					subs = parts[0][3:]
+				}
+				if f.matches(tag, ind1, ind2) {
+					if len(subs) != 0 {
+						for _, sf := range f.SubField(strings.Split(subs, "")...) {
+							res = append(res, sf.Value)
+						}
+					} else {
+						for _, sf := range f.SubFields {
+							res = append(res, sf.Value)
+						}
+					}
+				}
+			}
+		}
+	}
+	return res
+}
+
 // Next advances the MarcIterator to the next record, which will be
 // available through the Value method. It returns false when the
 // MarcIterator has reached the end of the file or has encountered an error.
