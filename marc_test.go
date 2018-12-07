@@ -13,6 +13,12 @@ func TestRecord(t *testing.T) {
 	iter := NewMarcIterator(f)
 	_ = iter.Next()
 	r := iter.Value()
+
+	t.Run("ControlNum", func(t *testing.T) {
+		if r.ControlNum() != "92005291" {
+			t.Error("Expected 92005291, got", r.ControlNum())
+		}
+	})
 	t.Run("Specific control field", func(t *testing.T) {
 		cf := r.ControlField("001")[0]
 		if cf.Tag != "001" {
