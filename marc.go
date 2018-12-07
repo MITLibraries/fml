@@ -48,6 +48,12 @@ type MarcIterator struct {
 	scanner *bufio.Scanner
 }
 
+// ControlNum returns the record's control number.
+func (r Record) ControlNum() string {
+	cf := r.ControlField("001")[0]
+	return strings.TrimSpace(cf.Value)
+}
+
 // DataField method takes an arbitrary number of tag strings and returns
 // a slice of matching DataFields. Note that one tag may return multiple
 // DataFields as they can be repeated.
