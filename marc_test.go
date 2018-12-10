@@ -2,6 +2,7 @@ package fml
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -13,7 +14,6 @@ func TestRecord(t *testing.T) {
 	iter := NewMarcIterator(f)
 	_ = iter.Next()
 	r := iter.Value()
-
 	t.Run("ControlNum", func(t *testing.T) {
 		if r.ControlNum() != "92005291" {
 			t.Error("Expected 92005291, got", r.ControlNum())
@@ -55,6 +55,34 @@ func TestRecord(t *testing.T) {
 		sfs := df.SubField("a", "b", "z")
 		if len(sfs) != 2 {
 			t.Error("Expected 2, got", len(sfs))
+		}
+	})
+	t.Run("Filter", func(t *testing.T) {
+		sfs := r.Filter("260ac", "245a", "100")
+		cat := strings.Join(sfs, " ")
+		if cat != "San Diego : c1993. Arithmetic / Sandburg, Carl, 1878-1967." {
+			t.Error("Expected San Diego : c1993. Arithmetic / Sandburg, Carl, 1878-1967., got", cat)
+		}
+	})
+	t.Run("Filter control and data field", func(t *testing.T) {
+		sfs := r.Filter("001", "700e")
+		cat := strings.Join(sfs, " ")
+		if cat != "   92005291  ill." {
+			t.Error("Expected    92005291  ill., got", cat)
+		}
+	})
+	t.Run("Filter multiples", func(t *testing.T) {
+		sfs := r.Filter("650x")
+		cat := strings.Join(sfs, " ")
+		if cat != "Juvenile poetry. Poetry." {
+			t.Error("Expected Juvenile poetry. Poetry., got", cat)
+		}
+	})
+	t.Run("Filter indicators", func(t *testing.T) {
+		sfs := r.Filter("650|*0|x")
+		cat := strings.Join(sfs, " ")
+		if cat != "Juvenile poetry." {
+			t.Error("Expected Juvenile poetry., got", cat)
 		}
 	})
 }
