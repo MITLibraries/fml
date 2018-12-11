@@ -113,15 +113,17 @@ func (d DataField) matches(tag string, ind1 string, ind2 string) bool {
 // done by including the two desired indicators between pipes after the tag.
 // An * character can be used for any inidicator, for example: "245|*1|ac"
 // or 650|01|x.
-func (r Record) Filter(query ...string) []string {
-	var res []string
+func (r Record) Filter(query ...string) [][]string {
+	var res [][]string
 	for _, q := range query {
 		tag := q[:3]
 		for _, field := range r.Fields {
+			var values []string
 			switch f := field.(type) {
 			case ControlField:
 				if f.Tag == tag {
-					res = append(res, f.Value)
+					values = append(values, f.Value)
+					res = append(res, values)
 				}
 			case DataField:
 				parts := strings.Split(q, "|")
@@ -136,12 +138,15 @@ func (r Record) Filter(query ...string) []string {
 				if f.matches(tag, ind1, ind2) {
 					if len(subs) != 0 {
 						for _, sf := range f.SubField(strings.Split(subs, "")...) {
-							res = append(res, sf.Value)
+							values = append(values, sf.Value)
 						}
 					} else {
 						for _, sf := range f.SubFields {
-							res = append(res, sf.Value)
+							values = append(values, sf.Value)
 						}
+					}
+					if len(values) > 0 {
+						res = append(res, values)
 					}
 				}
 			}
