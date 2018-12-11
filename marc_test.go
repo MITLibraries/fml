@@ -59,28 +59,42 @@ func TestRecord(t *testing.T) {
 	})
 	t.Run("Filter", func(t *testing.T) {
 		sfs := r.Filter("260ac", "245a", "100")
-		cat := strings.Join(sfs, " ")
-		if cat != "San Diego : c1993. Arithmetic / Sandburg, Carl, 1878-1967." {
-			t.Error("Expected San Diego : c1993. Arithmetic / Sandburg, Carl, 1878-1967., got", cat)
+		if len(sfs) != 3 {
+			t.Error("Expected 3, got", len(sfs))
+		}
+		cat := strings.Join(sfs[0], " ")
+		if cat != "San Diego : c1993." {
+			t.Error("Expected San Diego : c1993., got", cat)
 		}
 	})
 	t.Run("Filter control and data field", func(t *testing.T) {
 		sfs := r.Filter("001", "700e")
-		cat := strings.Join(sfs, " ")
+		if len(sfs) != 2 {
+			t.Error("Expected 2, got", len(sfs))
+		}
+		cat := strings.Join(sfs[0], " ")
+		cat += " " + strings.Join(sfs[1], " ")
 		if cat != "   92005291  ill." {
 			t.Error("Expected    92005291  ill., got", cat)
 		}
 	})
 	t.Run("Filter multiples", func(t *testing.T) {
 		sfs := r.Filter("650x")
-		cat := strings.Join(sfs, " ")
+		if len(sfs) != 2 {
+			t.Error("Expected 2, got", len(sfs))
+		}
+		cat := strings.Join(sfs[0], " ")
+		cat += " " + strings.Join(sfs[1], " ")
 		if cat != "Juvenile poetry. Poetry." {
 			t.Error("Expected Juvenile poetry. Poetry., got", cat)
 		}
 	})
 	t.Run("Filter indicators", func(t *testing.T) {
 		sfs := r.Filter("650|*0|x")
-		cat := strings.Join(sfs, " ")
+		if len(sfs) != 1 {
+			t.Error("Expected 1, got", len(sfs))
+		}
+		cat := strings.Join(sfs[0], " ")
 		if cat != "Juvenile poetry." {
 			t.Error("Expected Juvenile poetry., got", cat)
 		}
