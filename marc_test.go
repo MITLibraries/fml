@@ -19,6 +19,11 @@ func TestRecord(t *testing.T) {
 			t.Error("Expected 92005291, got", r.ControlNum())
 		}
 	})
+	t.Run("Leader", func(t *testing.T) {
+		if r.Leader.Type != 'a' {
+			t.Error("Expected a, got", r.Leader.Type)
+		}
+	})
 	t.Run("Specific control field", func(t *testing.T) {
 		cf := r.ControlField("001")[0]
 		if cf.Tag != "001" {
