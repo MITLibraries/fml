@@ -13,7 +13,7 @@ func BenchmarkFilter(b *testing.B) {
 	}
 	iter := NewMarcIterator(f)
 	_ = iter.Next()
-	r := iter.Value()
+	r, _ := iter.Value()
 	b.Run("Everything", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_ = r.Filter("650|*0|x")
@@ -31,6 +31,19 @@ func BenchmarkFilter(b *testing.B) {
 	})
 }
 
+func BenchmarkScanner(b *testing.B) {
+	f, err := os.Open("fixtures/record1.mrc")
+	if err != nil {
+		b.Error(err)
+	}
+	iter := NewMarcIterator(f)
+	_ = iter.Next()
+	bytes := iter.scanner.Bytes()
+	for n := 0; n < b.N; n++ {
+		_, _ = iter.scanIntoRecord(bytes)
+	}
+}
+
 func TestRecord(t *testing.T) {
 	f, err := os.Open("fixtures/record1.mrc")
 	if err != nil {
@@ -38,7 +51,7 @@ func TestRecord(t *testing.T) {
 	}
 	iter := NewMarcIterator(f)
 	_ = iter.Next()
-	r := iter.Value()
+	r, _ := iter.Value()
 	t.Run("ControlNum", func(t *testing.T) {
 		if r.ControlNum() != "92005291" {
 			t.Error("Expected 92005291, got", r.ControlNum())
