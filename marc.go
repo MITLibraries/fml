@@ -3,6 +3,7 @@ package fml
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"io"
 	"strconv"
 	"strings"
@@ -178,7 +179,7 @@ func (m *MarcIterator) Next() bool {
 }
 
 // Value returns the current Record or the MarcIterator.
-func (m *MarcIterator) Value() Record {
+func (m *MarcIterator) Value() (Record, error) {
 	return m.scanIntoRecord(m.scanner.Bytes())
 }
 
@@ -187,7 +188,7 @@ func (m *MarcIterator) Err() error {
 	return m.scanner.Err()
 }
 
-func (m *MarcIterator) scanIntoRecord(bytes []byte) Record {
+func (m *MarcIterator) scanIntoRecord(bytes []byte) (Record, error) {
 	rec := Record{}
 	rec.Leader = Leader{
 		Status:        bytes[5],
@@ -201,20 +202,34 @@ func (m *MarcIterator) scanIntoRecord(bytes []byte) Record {
 
 	start, err := strconv.Atoi(string(bytes[12:17]))
 	if err != nil {
-		panic(err)
+		return rec, errors.New("Could not determine record start")
 	}
 	data := bytes[start:]
 	dirs := bytes[24 : start-1]
 
 	for len(dirs) > 0 {
 		tag := string(dirs[:3])
-		dLength, _ := strconv.Atoi(string(dirs[3:7]))
-		dStart, _ := strconv.Atoi(string(dirs[7:12]))
-		//Length includes the field terminator
-		addField(&rec, tag, data[dStart:dStart+dLength-1])
+		length, err := strconv.Atoi(string(dirs[3:7]))
+		if err != nil {
+			return rec, errors.New("Could not determine length of field")
+		}
+		begin, err := strconv.Atoi(string(dirs[7:12]))
+		if err != nil {
+			return rec, errors.New("Could not determine field start")
+		}
+		fdata := data[begin : begin+length-1] // length includes field terminator
+		if strings.HasPrefix(tag, "00") {
+			rec.Fields = append(rec.Fields, ControlField{tag, string(fdata)})
+		} else {
+			df, err := makeDataField(tag, fdata)
+			if err != nil {
+				return rec, err
+			}
+			rec.Fields = append(rec.Fields, df)
+		}
 		dirs = dirs[12:]
 	}
-	return rec
+	return rec, nil
 }
 
 // NewMarcIterator creates and returns a new instance of a MarcIterator.
@@ -226,23 +241,19 @@ func NewMarcIterator(r io.Reader) *MarcIterator {
 	return &MarcIterator{scanner}
 }
 
-func addField(r *Record, tag string, data []byte) {
-	if strings.HasPrefix(tag, "00") {
-		r.Fields = append(r.Fields, ControlField{tag, string(data)})
-	} else {
-		r.Fields = append(r.Fields, makeDataField(tag, data))
-	}
-}
-
-func makeDataField(tag string, data []byte) DataField {
+func makeDataField(tag string, data []byte) (DataField, error) {
 	d := DataField{}
 	d.Tag = tag
 	d.Indicator1 = string(data[0])
 	d.Indicator2 = string(data[1])
 	for _, sf := range bytes.Split(data[3:], []byte{st}) {
-		d.SubFields = append(d.SubFields, SubField{string(sf[0]), string(sf[1:])})
+		if len(sf) > 0 {
+			d.SubFields = append(d.SubFields, SubField{string(sf[0]), string(sf[1:])})
+		} else {
+			return d, errors.New("Extraneous field terminator")
+		}
 	}
-	return d
+	return d, nil
 }
 
 func splitFunc(data []byte, atEOF bool) (advance int, token []byte, err error) {
