@@ -126,14 +126,14 @@ func (r Record) Filter(query ...string) [][]string {
 					res = append(res, values)
 				}
 			case DataField:
-				parts := strings.Split(q, "|")
+				ind := strings.Index(q, "|")
 				var subs string
 				ind1, ind2 := "*", "*"
-				if len(parts) == 3 {
-					ind1, ind2 = string(parts[1][0]), string(parts[1][1])
-					subs = parts[2]
+				if ind > -1 {
+					ind1, ind2 = string(q[ind+1]), string(q[ind+2])
+					subs = q[ind+4:]
 				} else {
-					subs = parts[0][3:]
+					subs = q[3:]
 				}
 				if f.matches(tag, ind1, ind2) {
 					if len(subs) != 0 {
