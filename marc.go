@@ -17,6 +17,20 @@ const (
 // which contains both ControlFields and DataFields.
 type Record struct {
 	Fields []interface{}
+	Leader Leader
+}
+
+// Leader contains a subset of the bytes in the record leader. Omitted are
+// bytes specifying the length of parts of the record and bytes which do
+// not vary from record to record.
+type Leader struct {
+	Status        byte // 05 byte position
+	Type          byte // 06
+	BibLevel      byte // 07
+	Control       byte // 08
+	EncodingLevel byte // 17
+	Form          byte // 18
+	Multipart     byte // 19
 }
 
 // ControlField just contains a Tag and a Value.
@@ -175,6 +189,15 @@ func (m *MarcIterator) Err() error {
 
 func (m *MarcIterator) scanIntoRecord(bytes []byte) Record {
 	rec := Record{}
+	rec.Leader = Leader{
+		Status:        bytes[5],
+		Type:          bytes[6],
+		BibLevel:      bytes[7],
+		Control:       bytes[8],
+		EncodingLevel: bytes[17],
+		Form:          bytes[18],
+		Multipart:     bytes[19],
+	}
 
 	start, err := strconv.Atoi(string(bytes[12:17]))
 	if err != nil {
