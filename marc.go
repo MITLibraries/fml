@@ -17,8 +17,8 @@ const (
 // Record is a struct representing a MARC record. It has a Fields slice
 // which contains both ControlFields and DataFields.
 type Record struct {
-	Fields []interface{}
 	Leader Leader
+	fields map[string][][]byte
 }
 
 // Leader contains a subset of the bytes in the record leader. Omitted are
@@ -75,11 +75,9 @@ func (r Record) ControlNum() string {
 func (r Record) DataField(tag ...string) []DataField {
 	fields := make([]DataField, 0, len(tag))
 	for _, t := range tag {
-		for _, f := range r.Fields {
-			field, ok := f.(DataField)
-			if ok && field.Tag == t {
-				fields = append(fields, field)
-			}
+		for _, f := range r.fields[t] {
+			df := DataField{string(f[0]), string(f[1]), t, subfields(f[3:])}
+			fields = append(fields, df)
 		}
 	}
 	return fields
@@ -90,11 +88,8 @@ func (r Record) DataField(tag ...string) []DataField {
 func (r Record) ControlField(tag ...string) []ControlField {
 	fields := make([]ControlField, 0, len(tag))
 	for _, t := range tag {
-		for _, f := range r.Fields {
-			field, ok := f.(ControlField)
-			if ok && field.Tag == t {
-				fields = append(fields, field)
-			}
+		for _, f := range r.fields[t] {
+			fields = append(fields, ControlField{t, string(f)})
 		}
 	}
 	return fields
@@ -114,11 +109,10 @@ func (d DataField) SubField(subfield ...string) []SubField {
 	return fields
 }
 
-func (d DataField) matches(tag string, ind1 string, ind2 string) bool {
-	t := d.Tag == tag
-	i1 := ind1 == "*" || d.Indicator1 == ind1
-	i2 := ind2 == "*" || d.Indicator2 == ind2
-	return t && i1 && i2
+func matches(data []byte, ind1 byte, ind2 byte) bool {
+	i1 := ind1 == '*' || data[0] == ind1
+	i2 := ind2 == '*' || data[1] == ind2
+	return i1 && i2
 }
 
 // Filter takes one or more tag queries and returns a slice of strings
@@ -131,43 +125,58 @@ func (d DataField) matches(tag string, ind1 string, ind2 string) bool {
 func (r Record) Filter(query ...string) [][]string {
 	var res [][]string
 	for _, q := range query {
-		tag := q[:3]
-		for _, field := range r.Fields {
+		tag, ind1, ind2, subs := splitQuery(q)
+		for _, field := range r.fields[tag] {
 			var values []string
-			switch f := field.(type) {
-			case ControlField:
-				if f.Tag == tag {
-					values = append(values, f.Value)
-					res = append(res, values)
-				}
-			case DataField:
-				ind := strings.Index(q, "|")
-				var subs string
-				ind1, ind2 := "*", "*"
-				if ind > -1 {
-					ind1, ind2 = string(q[ind+1]), string(q[ind+2])
-					subs = q[ind+4:]
-				} else {
-					subs = q[3:]
-				}
-				if f.matches(tag, ind1, ind2) {
-					if len(subs) != 0 {
-						for _, sf := range f.SubField(strings.Split(subs, "")...) {
-							values = append(values, sf.Value)
-						}
-					} else {
-						for _, sf := range f.SubFields {
-							values = append(values, sf.Value)
-						}
-					}
-					if len(values) > 0 {
-						res = append(res, values)
+			if strings.HasPrefix(tag, "00") {
+				values = append(values, string(field))
+			} else {
+				if matches(field, ind1, ind2) {
+					for _, sf := range subfields(field[3:], strings.Split(subs, "")...) {
+						values = append(values, sf.Value)
 					}
 				}
+			}
+			if len(values) > 0 {
+				res = append(res, values)
 			}
 		}
 	}
 	return res
+}
+
+func subfields(data []byte, codes ...string) []SubField {
+	var res []SubField
+	for _, sf := range bytes.Split(data, []byte{st}) {
+		if len(sf) == 0 {
+			continue
+		}
+		if len(codes) > 0 {
+			for _, code := range codes {
+				if string(sf[0]) == code {
+					res = append(res, SubField{string(sf[0]), string(sf[1:])})
+					break
+				}
+			}
+		} else {
+			res = append(res, SubField{string(sf[0]), string(sf[1:])})
+		}
+	}
+	return res
+}
+
+func splitQuery(query string) (string, byte, byte, string) {
+	var subs string
+	ind1, ind2 := byte('*'), byte('*')
+	tag := query[:3]
+	ind := strings.Index(query, "|")
+	if ind > -1 {
+		ind1, ind2 = query[ind+1], query[ind+2]
+		subs = query[ind+4:]
+	} else {
+		subs = query[3:]
+	}
+	return tag, ind1, ind2, subs
 }
 
 // Next advances the MarcIterator to the next record, which will be
@@ -190,6 +199,7 @@ func (m *MarcIterator) Err() error {
 
 func (m *MarcIterator) scanIntoRecord(bytes []byte) (Record, error) {
 	rec := Record{}
+	rec.fields = make(map[string][][]byte)
 	rec.Leader = Leader{
 		Status:        bytes[5],
 		Type:          bytes[6],
@@ -218,15 +228,9 @@ func (m *MarcIterator) scanIntoRecord(bytes []byte) (Record, error) {
 			return rec, errors.New("Could not determine field start")
 		}
 		fdata := data[begin : begin+length-1] // length includes field terminator
-		if strings.HasPrefix(tag, "00") {
-			rec.Fields = append(rec.Fields, ControlField{tag, string(fdata)})
-		} else {
-			df, err := makeDataField(tag, fdata)
-			if err != nil {
-				return rec, err
-			}
-			rec.Fields = append(rec.Fields, df)
-		}
+		fcopy := make([]byte, len(fdata))
+		copy(fcopy, fdata)
+		rec.fields[tag] = append(rec.fields[tag], fcopy)
 		dirs = dirs[12:]
 	}
 	return rec, nil
@@ -239,21 +243,6 @@ func NewMarcIterator(r io.Reader) *MarcIterator {
 	scanner := bufio.NewScanner(r)
 	scanner.Split(splitFunc)
 	return &MarcIterator{scanner}
-}
-
-func makeDataField(tag string, data []byte) (DataField, error) {
-	d := DataField{}
-	d.Tag = tag
-	d.Indicator1 = string(data[0])
-	d.Indicator2 = string(data[1])
-	for _, sf := range bytes.Split(data[3:], []byte{st}) {
-		if len(sf) > 0 {
-			d.SubFields = append(d.SubFields, SubField{string(sf[0]), string(sf[1:])})
-		} else {
-			return d, errors.New("Extraneous field terminator")
-		}
-	}
-	return d, nil
 }
 
 func splitFunc(data []byte, atEOF bool) (advance int, token []byte, err error) {

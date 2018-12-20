@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func BenchmarkFilter(b *testing.B) {
+func BenchmarkRecord(b *testing.B) {
 	f, err := os.Open("fixtures/record1.mrc")
 	if err != nil {
 		b.Error(err)
@@ -14,19 +14,24 @@ func BenchmarkFilter(b *testing.B) {
 	iter := NewMarcIterator(f)
 	_ = iter.Next()
 	r, _ := iter.Value()
-	b.Run("Everything", func(b *testing.B) {
+	b.Run("Filter/Everything", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_ = r.Filter("650|*0|x")
 		}
 	})
-	b.Run("Tag only", func(b *testing.B) {
+	b.Run("Filter/Tag", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_ = r.Filter("650")
 		}
 	})
-	b.Run("Tag-subfield", func(b *testing.B) {
+	b.Run("Filter/Tag-SF", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_ = r.Filter("650x")
+		}
+	})
+	b.Run("DataField", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = r.DataField("650")
 		}
 	})
 }
