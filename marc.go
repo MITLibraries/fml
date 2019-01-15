@@ -244,8 +244,12 @@ func NewMarcIterator(r io.Reader) *MarcIterator {
 func makeDataField(tag string, data []byte) (DataField, error) {
 	d := DataField{}
 	d.Tag = tag
-	d.Indicator1 = string(data[0])
-	d.Indicator2 = string(data[1])
+	if len(data) > 2 {
+		d.Indicator1 = string(data[0])
+		d.Indicator2 = string(data[1])
+	} else {
+		return d, errors.New("Invalid Indicators detected")
+	}
 	for _, sf := range bytes.Split(data[3:], []byte{st}) {
 		if len(sf) > 0 {
 			d.SubFields = append(d.SubFields, SubField{string(sf[0]), string(sf[1:])})
