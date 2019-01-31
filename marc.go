@@ -1,3 +1,8 @@
+/*
+
+fml is library for parsing MARC 21 formatted data.
+
+*/
 package fml
 
 import (
