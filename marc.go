@@ -214,7 +214,7 @@ func (m *MarcIterator) scanIntoRecord(bytes []byte) (Record, error) {
 	data := bytes[start:]
 	dirs := bytes[24 : start-1]
 
-	for len(dirs) > 0 {
+	for len(dirs) >= 12 {
 		tag := string(dirs[:3])
 		length, err := strconv.Atoi(string(dirs[3:7]))
 		if err != nil {
@@ -223,6 +223,9 @@ func (m *MarcIterator) scanIntoRecord(bytes []byte) (Record, error) {
 		begin, err := strconv.Atoi(string(dirs[7:12]))
 		if err != nil {
 			return rec, errors.New("Could not determine field start")
+		}
+		if len(data) <= begin+length-1 {
+			return rec, errors.New("Reported field length incorrect")
 		}
 		fdata := data[begin : begin+length-1] // length includes field terminator
 		if strings.HasPrefix(tag, "00") {
