@@ -2,6 +2,12 @@
 
 fml is a Go library for parsing MARC 21 formatted data. The library interface should still be considered unstable and may change in backwards incompatible ways.
 
+There is also an `fml` command line utility that can be used to pull a single MARC record from a file by control number. The command can be installed with:
+
+```
+$ go get github.com/mitlibraries/fml/cmd/fml
+```
+
 ## How do I use this?
 
 Start by creating a new `MarcIterator`:
