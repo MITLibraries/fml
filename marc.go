@@ -22,6 +22,7 @@ const (
 // Record is a struct representing a MARC record. It has a Fields slice
 // which contains both ControlFields and DataFields.
 type Record struct {
+	Data   []byte
 	Fields []interface{}
 	Leader Leader
 }
@@ -195,6 +196,7 @@ func (m *MarcIterator) Err() error {
 
 func (m *MarcIterator) scanIntoRecord(bytes []byte) (Record, error) {
 	rec := Record{}
+	rec.Data = append([]byte(nil), bytes...)
 	rec.Leader = Leader{
 		Status:        bytes[5],
 		Type:          bytes[6],
