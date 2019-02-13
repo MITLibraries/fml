@@ -1,5 +1,7 @@
 # fml (Fast MARC Library)
 
+[![GoDoc](https://godoc.org/github.com/MITLibraries/fml?status.svg)](https://godoc.org/github.com/MITLibraries/fml)
+
 fml is a Go library for parsing MARC 21 formatted data. The library interface should still be considered unstable and may change in backwards incompatible ways.
 
 There is also an `fml` command line utility that can be used to pull a single MARC record from a file by control number. The command can be installed with:
@@ -9,6 +11,10 @@ $ go get github.com/mitlibraries/fml/cmd/fml
 ```
 
 ## How do I use this?
+
+```go
+import "github.com/mitlibraries/fml"
+```
 
 Start by creating a new `MarcIterator`:
 
@@ -20,7 +26,7 @@ A `MarcIterator` can be iterated over by using the `Next()` and `Value()` method
 
 ```go
 for m.Next() {
-  record := m.Value()
+  record, err := m.Value()
   // do something with record
 }
 err := m.Err()
