@@ -247,6 +247,14 @@ func (m *MarcIterator) scanIntoRecord(bytes []byte) (Record, error) {
 // instantiating one yourself.
 func NewMarcIterator(r io.Reader) *MarcIterator {
 	scanner := bufio.NewScanner(r)
+
+	// By default Scanner.Scan() returns "bufio.Scanner: token too long" if
+	// the block to read is longer than 64K. Since MARC records can be up to
+	// 100K in size we use a custom value. See https://stackoverflow.com/a/37455465/446681
+	initialBuffer := make([]byte, 0, 64*1024)
+	customMaxSize := 105 * 1024
+	scanner.Buffer(initialBuffer, customMaxSize)
+
 	scanner.Split(splitFunc)
 	return &MarcIterator{scanner}
 }
