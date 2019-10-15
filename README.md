@@ -1,6 +1,6 @@
 # fml (Fast MARC Library)
 
-[![GoDoc](https://godoc.org/github.com/MITLibraries/fml?status.svg)](https://godoc.org/github.com/MITLibraries/fml)
+[![GoDoc](https://godoc.org/github.com/mitlibraries/fml?status.svg)](https://godoc.org/github.com/mitlibraries/fml)
 
 fml is a Go library for parsing MARC 21 formatted data. The library interface should still be considered unstable and may change in backwards incompatible ways.
 
@@ -89,4 +89,26 @@ outputs:
 Tomb of Annihilation
 Handbooks, manuals, etc.
 Rules.
+```
+
+## Developing
+
+This package uses modules for managing dependencies. Use:
+
+```
+$ go get -u ./...
+```
+
+to upgrade all minor/patch versions of dependencies.
+
+Tests can be run with:
+
+```
+$ go test -v ./...
+```
+
+Benchmarks can be run with:
+
+```
+$ go test -bench=.
 ```
