@@ -42,7 +42,7 @@ func BenchmarkScanner(b *testing.B) {
 	}
 	iter := NewMarcIterator(f)
 	_ = iter.Next()
-	bytes := iter.scanner.Bytes()
+	bytes := iter.scanner.Text()
 	for n := 0; n < b.N; n++ {
 		_, _ = iter.scanIntoRecord(bytes)
 	}
