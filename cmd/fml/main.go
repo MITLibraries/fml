@@ -26,7 +26,7 @@ func main() {
 				for m.Next() {
 					record, _ := m.Value()
 					if record.ControlNum() == id {
-						os.Stdout.Write(record.Data)
+						os.Stdout.WriteString(record.Data)
 						break
 					}
 				}

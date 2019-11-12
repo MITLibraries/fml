@@ -15,16 +15,19 @@ func BenchmarkFilter(b *testing.B) {
 	_ = iter.Next()
 	r, _ := iter.Value()
 	b.Run("Everything", func(b *testing.B) {
+		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			_ = r.Filter("650|*0|x")
 		}
 	})
 	b.Run("Tag only", func(b *testing.B) {
+		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			_ = r.Filter("650")
 		}
 	})
 	b.Run("Tag-subfield", func(b *testing.B) {
+		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			_ = r.Filter("650x")
 		}
@@ -32,13 +35,14 @@ func BenchmarkFilter(b *testing.B) {
 }
 
 func BenchmarkScanner(b *testing.B) {
+	b.ReportAllocs()
 	f, err := os.Open("fixtures/record1.mrc")
 	if err != nil {
 		b.Error(err)
 	}
 	iter := NewMarcIterator(f)
 	_ = iter.Next()
-	bytes := iter.scanner.Bytes()
+	bytes := iter.scanner.Text()
 	for n := 0; n < b.N; n++ {
 		_, _ = iter.scanIntoRecord(bytes)
 	}

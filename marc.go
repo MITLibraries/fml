@@ -15,14 +15,14 @@ import (
 )
 
 const (
-	rt = 0x1d // End of record
-	st = 0x1f // End of subfield
+	rt = 0x1d   // End of record
+	st = "\x1f" // End of subfield
 )
 
 // Record is a struct representing a MARC record. It has a Fields slice
 // which contains both ControlFields and DataFields.
 type Record struct {
-	Data   []byte
+	Data   string
 	Fields []interface{}
 	Leader Leader
 }
@@ -186,7 +186,7 @@ func (m *MarcIterator) Next() bool {
 
 // Value returns the current Record or the MarcIterator.
 func (m *MarcIterator) Value() (Record, error) {
-	return m.scanIntoRecord(m.scanner.Bytes())
+	return m.scanIntoRecord(m.scanner.Text())
 }
 
 // Err will return the first error encountered by the MarcIterator.
@@ -194,33 +194,34 @@ func (m *MarcIterator) Err() error {
 	return m.scanner.Err()
 }
 
-func (m *MarcIterator) scanIntoRecord(bytes []byte) (Record, error) {
-	rec := Record{}
-	rec.Data = append([]byte(nil), bytes...)
-	rec.Leader = Leader{
-		Status:        bytes[5],
-		Type:          bytes[6],
-		BibLevel:      bytes[7],
-		Control:       bytes[8],
-		EncodingLevel: bytes[17],
-		Form:          bytes[18],
-		Multipart:     bytes[19],
+func (m *MarcIterator) scanIntoRecord(record string) (Record, error) {
+	rec := Record{
+		Data: record,
+		Leader: Leader{
+			Status:        record[5],
+			Type:          record[6],
+			BibLevel:      record[7],
+			Control:       record[8],
+			EncodingLevel: record[17],
+			Form:          record[18],
+			Multipart:     record[19],
+		},
 	}
 
-	start, err := strconv.Atoi(string(bytes[12:17]))
+	start, err := strconv.Atoi(record[12:17])
 	if err != nil {
 		return rec, errors.New("Could not determine record start")
 	}
-	data := bytes[start:]
-	dirs := bytes[24 : start-1]
+	data := record[start:]
+	dirs := record[24 : start-1]
 
 	for len(dirs) >= 12 {
-		tag := string(dirs[:3])
-		length, err := strconv.Atoi(string(dirs[3:7]))
+		tag := dirs[:3]
+		length, err := strconv.Atoi(dirs[3:7])
 		if err != nil {
 			return rec, errors.New("Could not determine length of field")
 		}
-		begin, err := strconv.Atoi(string(dirs[7:12]))
+		begin, err := strconv.Atoi(dirs[7:12])
 		if err != nil {
 			return rec, errors.New("Could not determine field start")
 		}
@@ -229,7 +230,7 @@ func (m *MarcIterator) scanIntoRecord(bytes []byte) (Record, error) {
 		}
 		fdata := data[begin : begin+length-1] // length includes field terminator
 		if strings.HasPrefix(tag, "00") {
-			rec.Fields = append(rec.Fields, ControlField{tag, string(fdata)})
+			rec.Fields = append(rec.Fields, ControlField{tag, fdata})
 		} else {
 			df, err := makeDataField(tag, fdata)
 			if err != nil {
@@ -259,16 +260,15 @@ func NewMarcIterator(r io.Reader) *MarcIterator {
 	return &MarcIterator{scanner}
 }
 
-func makeDataField(tag string, data []byte) (DataField, error) {
-	d := DataField{}
-	d.Tag = tag
+func makeDataField(tag string, data string) (DataField, error) {
+	d := DataField{Tag: tag, SubFields: make([]SubField, 0, 5)}
 	if len(data) > 2 {
 		d.Indicator1 = string(data[0])
 		d.Indicator2 = string(data[1])
 	} else {
 		return d, errors.New("Invalid Indicators detected")
 	}
-	for _, sf := range bytes.Split(data[3:], []byte{st}) {
+	for _, sf := range strings.Split(data[3:], st) {
 		if len(sf) > 0 {
 			d.SubFields = append(d.SubFields, SubField{string(sf[0]), string(sf[1:])})
 		} else {
